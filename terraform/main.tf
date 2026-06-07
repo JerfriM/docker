@@ -42,6 +42,7 @@ resource "aws_lambda_function" "api" {
     variables = {
       DATABASE_URL = var.database_url
       JWT_SECRET   = var.jwt_secret
+      S3_BUCKET    = aws_s3_bucket.uploads.bucket
     }
   }
 
@@ -92,4 +93,50 @@ resource "aws_lambda_permission" "api_gateway" {
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# Bucket S3 para archivos
+resource "aws_s3_bucket" "uploads" {
+  bucket = "api-go-uploads-${random_id.bucket_id.hex}"
+}
+
+resource "random_id" "bucket_id" {
+  byte_length = 4
+}
+
+resource "aws_s3_bucket_public_access_block" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "uploads_public" {
+  bucket = aws_s3_bucket.uploads.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "PublicRead"
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.uploads.arn}/*"
+    }]
+  })
+  depends_on = [aws_s3_bucket_public_access_block.uploads]
+}
+
+# Permiso para que Lambda acceda a S3
+resource "aws_iam_role_policy" "lambda_s3" {
+  name = "lambda_s3_policy"
+  role = aws_iam_role.lambda_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:PutObject", "s3:GetObject"]
+      Resource = "${aws_s3_bucket.uploads.arn}/*"
+    }]
+  })
 }

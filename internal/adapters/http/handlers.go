@@ -11,6 +11,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+import (
+    "context"
+    "github.com/aws/aws-sdk-go-v2/config"
+    "github.com/aws/aws-sdk-go-v2/service/s3"
+)
 
 type UserHandler struct {
 	svc ports.UserService
@@ -124,32 +129,76 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // 📂 NUEVO: Manejo de subida de archivos (Multipart Form)
 func (h *UserHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
-	// Limitar archivo a 5MB
-	r.ParseMultipartForm(5 << 20)
+	bucketName := os.Getenv("S3_BUCKET")
 
+	// Si no hay bucket configurado, guardar localmente
+	if bucketName == "" {
+		r.ParseMultipartForm(5 << 20)
+		file, handler, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, "Error al obtener el archivo", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		uploadDir := "./uploads"
+		os.MkdirAll(uploadDir, os.ModePerm)
+		dst, err := os.Create(filepath.Join(uploadDir, handler.Filename))
+		if err != nil {
+			http.Error(w, "Error al guardar archivo", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		io.Copy(dst, file)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"message":  "Archivo subido exitosamente",
+			"filename": handler.Filename,
+			"url":      "/uploads/" + handler.Filename,
+		})
+		return
+	}
+
+	// Subir a S3
+	r.ParseMultipartForm(5 << 20)
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Error al obtener el archivo del formulario", http.StatusBadRequest)
+		http.Error(w, "Error al obtener el archivo", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	// Crear carpeta local en el servidor si no existe
-	uploadDir := "./uploads"
-	os.MkdirAll(uploadDir, os.ModePerm)
-
-	dst, err := os.Create(filepath.Join(uploadDir, handler.Filename))
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		http.Error(w, "Error al guardar archivo en el servidor", http.StatusInternalServerError)
+		http.Error(w, "Error al configurar AWS", http.StatusInternalServerError)
 		return
 	}
-	defer dst.Close()
 
-	if _, err = io.Copy(dst, file); err != nil {
-		http.Error(w, "Error al guardar contenido", http.StatusInternalServerError)
+	client := s3.NewFromConfig(cfg)
+	key := "uploads/" + handler.Filename
+
+	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      &bucketName,
+		Key:         &key,
+		Body:        file,
+		ContentType: &handler.Header.Get("Content-Type"),
+	})
+	if err != nil {
+		http.Error(w, "Error al subir a S3", http.StatusInternalServerError)
 		return
 	}
+
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = "us-east-1"
+	}
+	url := "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Archivo subido exitosamente: " + handler.Filename})
+	json.NewEncoder(w).Encode(map[string]string{
+		"message":  "Archivo subido a S3",
+		"filename": handler.Filename,
+		"url":      url,
+	})
 }
