@@ -43,7 +43,7 @@ func setupRouter() *chi.Mux {
 		jwtSecret = "mi_clave_secreta_super_segura_2026"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, connStr)

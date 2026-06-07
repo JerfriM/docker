@@ -36,6 +36,7 @@ resource "aws_lambda_function" "api" {
   handler          = "bootstrap"
   runtime          = "provided.al2"
   source_code_hash = filebase64sha256("../lambda.zip")
+  timeout          = 30
 
   environment {
     variables = {
