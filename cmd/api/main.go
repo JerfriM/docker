@@ -13,13 +13,13 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
+	httpadapter "github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var chiLambda *chiadapter.ChiLambda
+var chiLambda *httpadapter.HandlerAdapterV2
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,13 +77,13 @@ func setupRouter() *chi.Mux {
 	return r
 }
 
-func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	return chiLambda.ProxyWithContext(ctx, req)
 }
 
 func main() {
 	r := setupRouter()
-	chiLambda = chiadapter.New(r)
+	chiLambda = httpadapter.NewV2(r)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(handler)
