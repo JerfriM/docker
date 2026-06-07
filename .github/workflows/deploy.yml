@@ -20,6 +20,7 @@ jobs:
 
       - name: Instalar dependencias
         run: go mod download
+             go mod tidy
 
       - name: Compilar para Lambda
         run: |
