@@ -1,0 +1,9 @@
+@
+.terraform
+terraform.terraform
+.tfstate
+.tfstate.backup
+lambda.zip
+bootstrap
+uploads
+@  Out-File -FilePath .gitignore -Encoding utf8
