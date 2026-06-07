@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"mi-api-go/internal/core/ports"
@@ -9,12 +10,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-chi/chi/v5"
-)
-import (
-    "context"
-    "github.com/aws/aws-sdk-go-v2/config"
-    "github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type UserHandler struct {
@@ -92,7 +90,6 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
-// 🔄 NUEVO: Actualizar usuario en el CRUD
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -112,7 +109,6 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Usuario actualizado"})
 }
 
-// ❌ NUEVO: Eliminar usuario en el CRUD
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -127,11 +123,9 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Usuario eliminado"})
 }
 
-// 📂 NUEVO: Manejo de subida de archivos (Multipart Form)
 func (h *UserHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	bucketName := os.Getenv("S3_BUCKET")
 
-	// Si no hay bucket configurado, guardar localmente
 	if bucketName == "" {
 		r.ParseMultipartForm(5 << 20)
 		file, handler, err := r.FormFile("file")
@@ -160,7 +154,6 @@ func (h *UserHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Subir a S3
 	r.ParseMultipartForm(5 << 20)
 	file, handler, err := r.FormFile("file")
 	if err != nil {
@@ -177,12 +170,13 @@ func (h *UserHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	client := s3.NewFromConfig(cfg)
 	key := "uploads/" + handler.Filename
+	contentType := handler.Header.Get("Content-Type")
 
 	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      &bucketName,
 		Key:         &key,
 		Body:        file,
-		ContentType: &handler.Header.Get("Content-Type"),
+		ContentType: &contentType,
 	})
 	if err != nil {
 		http.Error(w, "Error al subir a S3", http.StatusInternalServerError)
