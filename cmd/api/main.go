@@ -11,8 +11,9 @@ import (
 	dbHttp "mi-api-go/internal/adapters/http"
 	"mi-api-go/internal/core/services"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/awslabs/aws-lambda-go-api-proxy/chi"
+	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -76,7 +77,7 @@ func setupRouter() *chi.Mux {
 	return r
 }
 
-func handler(ctx context.Context, req interface{}) (interface{}, error) {
+func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	return chiLambda.ProxyWithContext(ctx, req)
 }
 
@@ -85,10 +86,8 @@ func main() {
 	chiLambda = chiadapter.New(r)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
-		// Corriendo en Lambda
 		lambda.Start(handler)
 	} else {
-		// Corriendo local
 		log.Println("Servidor Go corriendo en http://localhost:8080 🚀")
 		if err := http.ListenAndServe(":8080", r); err != nil {
 			log.Fatalf("Error al arrancar: %v", err)
