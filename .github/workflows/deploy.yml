@@ -20,9 +20,11 @@ jobs:
 
       - name: Instalar dependencias
         run: |
+          go mod download
           go get github.com/aws/aws-sdk-go-v2/config
           go get github.com/aws/aws-sdk-go-v2/service/s3
-          go mod download
+          go mod tidy
+         
 
       - name: Compilar para Lambda
         run: |
