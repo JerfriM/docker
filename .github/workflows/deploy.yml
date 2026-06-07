@@ -20,6 +20,7 @@ jobs:
 
       - name: Instalar dependencias
         run: |
+          go env -w GOTOOLCHAIN=auto
           go mod download
           go get github.com/aws/aws-sdk-go-v2/config
           go get github.com/aws/aws-sdk-go-v2/service/s3
