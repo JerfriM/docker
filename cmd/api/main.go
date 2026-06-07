@@ -11,15 +11,12 @@ import (
 	dbHttp "mi-api-go/internal/adapters/http"
 	"mi-api-go/internal/core/services"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	httpadapter "github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
+	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-var chiLambda *httpadapter.HandlerAdapterV2
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,16 +74,12 @@ func setupRouter() *chi.Mux {
 	return r
 }
 
-func handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	return chiLambda.ProxyWithContext(ctx, req)
-}
-
 func main() {
 	r := setupRouter()
-	chiLambda = httpadapter.NewV2(r)
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
-		lambda.Start(handler)
+		adapter := httpadapter.New(r)
+		lambda.Start(adapter.ProxyWithContext)
 	} else {
 		log.Println("Servidor Go corriendo en http://localhost:8080 🚀")
 		if err := http.ListenAndServe(":8080", r); err != nil {
