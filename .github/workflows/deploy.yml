@@ -22,14 +22,11 @@ jobs:
         run: |
           go env -w GOTOOLCHAIN=auto
           go mod download
-          go get github.com/aws/aws-sdk-go-v2/config
-          go get github.com/aws/aws-sdk-go-v2/service/s3
-          go mod tidy
-         
 
       - name: Compilar para Lambda
         run: |
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bootstrap ./cmd/api
+          go env -w GOTOOLCHAIN=auto
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=mod -o bootstrap ./cmd/api
           zip lambda.zip bootstrap
 
       - name: Configurar AWS credentials
