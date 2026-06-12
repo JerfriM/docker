@@ -4,23 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"mi-api-go/internal/core/ports"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	"mi-api-go/internal/core/ports"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/go-chi/chi/v5"
 )
 
 type UserHandler struct {
-	svc ports.UserService
+	svc       ports.UserService
+	snsClient *sns.Client // Inyección del cliente SNS agregada
 }
 
-func NewUserHandler(svc ports.UserService) *UserHandler {
-	return &UserHandler{svc: svc}
+// NewUserHandler ahora acepta correctamente el servicio y el cliente SNS
+func NewUserHandler(svc ports.UserService, snsClient *sns.Client) *UserHandler {
+	return &UserHandler{
+		svc:       svc,
+		snsClient: snsClient,
+	}
 }
 
 type registerReq struct {
@@ -33,6 +41,68 @@ type updateReq struct {
 	Name      string `json:"name"`
 	Matricula string `json:"matricula"`
 }
+
+// =========================================================================
+// NUEVO: Endpoint para enviar notificaciones asíncronas vía SNS
+// =========================================================================
+func (h *UserHandler) SendNotification(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email   string `json:"email"`
+		Subject string `json:"subject"`
+		Message string `json:"message"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		return
+	}
+
+	if input.Email == "" || input.Subject == "" || input.Message == "" {
+		http.Error(w, "Todos los campos (email, subject, message) son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	payload, err := json.Marshal(input)
+	if err != nil {
+		http.Error(w, "Error interno al procesar el mensaje", http.StatusInternalServerError)
+		return
+	}
+
+	topicArn := os.Getenv("SNS_TOPIC_ARN")
+
+	// Si no hay cliente de SNS o falta el ARN (Entorno local de pruebas)
+	if h.snsClient == nil || topicArn == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "simulated",
+			"message": "Entorno local: Notificación registrada en logs de desarrollo (SNS inactivo)",
+		})
+		return
+	}
+
+	// Publicación del evento en el Tópico SNS
+	_, err = h.snsClient.Publish(r.Context(), &sns.PublishInput{
+		TopicArn: aws.String(topicArn),
+		Message:  aws.String(string(payload)),
+	})
+
+	if err != nil {
+		http.Error(w, "Error al encolar la notificación en AWS SNS: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted) // Status 202
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Notificación despachada y encolada correctamente",
+	})
+}
+
+// =========================================================================
+// Endpoints de Usuarios (Mantener intactos tal como los enviaste)
+// =========================================================================
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerReq
