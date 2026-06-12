@@ -94,7 +94,7 @@ func setupRouter() *chi.Mux {
 		protected.Put("/users/{id}", userHandler.UpdateUser)
 		protected.Delete("/users/{id}", userHandler.DeleteUser)
 		protected.Post("/users/upload", userHandler.UploadFile)
-		
+		protected.Post("/notifications/send", userHandler.SendNotification)
 		// 3. Ubicamos el endpoint protegido bajo el prefijo ruteable de /users
 		protected.Post("/users/notifications/send", userHandler.SendNotification)
 	})
