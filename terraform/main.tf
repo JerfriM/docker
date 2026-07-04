@@ -265,3 +265,52 @@ resource "aws_iam_role_policy" "lambda_s3" {
     }]
   })
 }
+
+# IAM Role para EventBridge Scheduler
+resource "aws_iam_role" "eventbridge_role" {
+  name = "eventbridge_scheduler_role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "scheduler.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "eventbridge_policy" {
+  name = "eventbridge_invoke_policy"
+  role = aws_iam_role.eventbridge_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["lambda:InvokeFunction"]
+      Resource = aws_lambda_function.notifications.arn
+    }]
+  })
+}
+
+# EventBridge Scheduler — cada 5 minutos
+resource "aws_scheduler_schedule" "every_5_minutes" {
+  name       = "invoke-notification-lambda-every-5min"
+  group_name = "default"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression = "rate(5 minutes)"
+
+  target {
+    arn      = aws_lambda_function.notifications.arn
+    role_arn = aws_iam_role.eventbridge_role.arn
+
+    input = jsonencode({
+      source  = "eventbridge-scheduler"
+      message = "Ejecución automática cada 5 minutos"
+      time    = "scheduled"
+    })
+  }
+}

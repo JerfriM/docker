@@ -18,3 +18,7 @@ output "sqs_queue_url" {
 output "notification_lambda_name" {
   value = aws_lambda_function.notifications.function_name
 }
+
+output "eventbridge_schedule_name" {
+  value = aws_scheduler_schedule.every_5_minutes.name
+}
