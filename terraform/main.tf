@@ -311,6 +311,9 @@ resource "aws_scheduler_schedule" "every_5_minutes" {
       source  = "eventbridge-scheduler"
       message = "Ejecución automática cada 5 minutos"
       time    = "scheduled"
+      email   = "tu-email-verificado@gmail.com"
+        subject = "Prueba EventBridge Scheduler"
+        message = "Este correo fue enviado automáticamente cada 5 minutos desde AWS EventBridge Scheduler."
     })
   }
 }
