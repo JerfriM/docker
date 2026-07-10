@@ -20,6 +20,8 @@ type NotificationMessage struct {
 	Source  string `json:"source,omitempty"` // Para identificar si viene de EventBridge
 }
 
+
+
 // Cambiamos la firma para recibir json.RawMessage (bytes puros)
 func handler(ctx context.Context, rawEvent json.RawMessage) error {
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -27,6 +29,7 @@ func handler(ctx context.Context, rawEvent json.RawMessage) error {
 		log.Printf("Error configurando AWS: %v", err)
 		return err
 	}
+	
 
 	sesClient := ses.NewFromConfig(cfg)
 	fromEmail := os.Getenv("FROM_EMAIL")
