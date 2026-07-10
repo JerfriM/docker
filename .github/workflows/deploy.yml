@@ -23,11 +23,22 @@ jobs:
           go env -w GOTOOLCHAIN=auto
           go mod download
 
-      - name: Compilar para Lambda
+      - name: Compilar API Principal
         run: |
           go env -w GOTOOLCHAIN=auto
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=mod -o bootstrap ./cmd/api
-          zip lambda.zip bootstrap
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=mod -o bootstrap_api ./cmd/api
+          # Movemos el binario a su propio zip renombrándolo a bootstrap internamente
+          zip -j lambda.zip bootstrap_api
+          printf "@ bootstrap_api\n@=bootstrap\n" | zipnote -w lambda.zip
+
+      - name: Compilar Notificaciones (SES)
+        run: |
+          go env -w GOTOOLCHAIN=auto
+          # Compilamos directamente desde la carpeta notifications
+          cd notifications
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=mod -o bootstrap main.go
+          zip ../notifications.zip bootstrap
+          cd ..
 
       - name: Configurar AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -60,11 +71,3 @@ jobs:
         env:
           TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-          
-      - name: Compilar para Lambda
-        run: |
-          go env -w GOTOOLCHAIN=auto
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=mod -o bootstrap ./cmd/api
-          zip lambda.zip bootstrap
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=mod -o bootstrap ./notifications
-          zip notifications.zip bootstrap
