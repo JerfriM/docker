@@ -64,6 +64,7 @@ jobs:
         env:
           TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_from_email: "sololarry259@gmail.com"
 
       - name: Terraform Apply
         working-directory: terraform
@@ -71,3 +72,4 @@ jobs:
         env:
           TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_from_email: "sololarry259@gmail.com"

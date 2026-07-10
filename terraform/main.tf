@@ -310,7 +310,7 @@ resource "aws_scheduler_schedule" "every_5_minutes" {
     input = jsonencode({
       source  = "eventbridge-scheduler"
       time    = "scheduled"
-      email   = "sololarry269@gmail.com"
+      email   = "sololarry268@gmail.com"
         subject = "Prueba EventBridge Scheduler"
         message = "Este correo fue enviado automáticamente cada 5 minutos desde AWS EventBridge Scheduler."
     })
